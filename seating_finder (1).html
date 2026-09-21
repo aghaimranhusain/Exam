@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>Exam Seating Finder</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --primary: #1F4E79;
+      --accent: #2E75B6;
+      --bg: #f0f7fc;
+      --card: #ffffff;
+      --success: #27ae60;
+      --danger: #e74c3c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(160deg, #e8f4fd 0%, #f5f9fc 100%);
+      min-height: 100vh;
+      color: #222;
+      padding: 1rem;
+    }
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      padding-top: 0.5rem;
+    }
+    header h1 {
+      font-size: 1.7rem;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    header p {
+      color: #666;
+      font-size: 0.95rem;
+      margin-top: 0.25rem;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 1.4rem;
+      box-shadow: 0 8px 24px rgba(31, 78, 121, 0.12);
+      margin-bottom: 1.2rem;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      font-size: 1.1rem;
+      border: 2px solid #d0e3f0;
+      border-radius: 10px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+    button {
+      width: 100%;
+      margin-top: 0.9rem;
+      padding: 0.95rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    button:active { transform: scale(0.98); }
+    button:hover { background: var(--primary); }
+    .result {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .result.show { display: block; }
+    .seat-display {
+      text-align: center;
+      padding: 1.2rem 0 0.5rem;
+    }
+    .seat-big {
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 1px;
+    }
+    .room {
+      font-size: 1.1rem;
+      color: #333;
+      margin-top: 0.4rem;
+    }
+    .meta {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #555;
+      line-height: 1.6;
+    }
+    .meta strong { color: #333; }
+    .not-found {
+      background: #fdecea;
+      color: #c0392b;
+      padding: 1.2rem;
+      border-radius: 10px;
+      border: 2px solid #e74c3c;
+      border-left: 6px solid #e74c3c;
+      display: none;
+      margin-top: 1rem;
+      font-size: 1rem;
+      font-weight: 500;
+      text-align: center;
+      animation: shake 0.4s ease;
+    }
+    .not-found.show { display: block; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    input.error {
+      border-color: #e74c3c !important;
+      background: #fff5f5;
+    }
+    .hint {
+      background: #e8f8f0;
+      color: #1e8449;
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      margin-top: 0.8rem;
+      text-align: center;
+    }
+    .upload-section {
+      margin-top: 1.5rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #777;
+    }
+    .upload-section input[type="file"] {
+      display: none;
+    }
+    .upload-btn {
+      display: inline-block;
+      margin-top: 0.4rem;
+      padding: 0.5rem 1rem;
+      background: #eee;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #444;
+      font-size: 0.9rem;
+    }
+    .status {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #888;
+      margin-top: 0.6rem;
+    }
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🪑 Exam Seating Finder</h1>
+      <p>Enter your Roll Number to find your seat</p>
+    </header>
+
+    <div class="card">
+      <label for="roll">Your Roll Number</label>
+      <input type="text" id="roll" placeholder="e.g. 2K22LWUN01035 or 01035" autocomplete="off" />
+      <button id="searchBtn">Find Seat</button>
+
+      <div id="result" class="result">
+        <div class="seat-display">
+          <div class="seat-big" id="seatText">—</div>
+          <div class="room" id="roomText"></div>
+        </div>
+        <div class="meta" id="metaText"></div>
+        <div class="hint" id="hintText"></div>
+      </div>
+
+      <div id="notFound" class="not-found">
+        ❌ <strong>Invalid or incorrect Roll Number</strong><br>
+        No seat found. Please check the number and try again.
+      </div>
+    </div>
+
+    <div class="upload-section">
+      <div>Using built-in seating plan</div>
+      <label class="upload-btn" for="fileInput">📁 Upload new Excel / CSV</label>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+      <div class="status" id="status">30 seats loaded (LS-03)</div>
+    </div>
+
+    <footer>
+      Works offline • Data stays on your device
+    </footer>
+  </div>
+
+  <script>
+    // ============ Built-in data extracted from the seating plan image ============
+    const defaultData = [
+      { "Roll Number": "2K22LWUN01035", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-1", "Row": "Row-1", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01036", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-1", "Row": "Row-2", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01037", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-1", "Row": "Row-3", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01038", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-1", "Row": "Row-4", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01039", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-1", "Row": "Row-5", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01040", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-1", "Row": "Row-6", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01042", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-1", "Row": "Row-7", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01043", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-1", "Row": "Row-8", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01044", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-2", "Row": "Row-1", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01045", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-2", "Row": "Row-2", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01046", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-2", "Row": "Row-3", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01048", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-2", "Row": "Row-4", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01049", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-2", "Row": "Row-5", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01050", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-2", "Row": "Row-6", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01051", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-2", "Row": "Row-7", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01052", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-2", "Row": "Row-8", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01054", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-3", "Row": "Row-1", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01056", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-3", "Row": "Row-2", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01058", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-3", "Row": "Row-3", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01059", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-3", "Row": "Row-4", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01061", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-3", "Row": "Row-5", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01062", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-3", "Row": "Row-6", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01063", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-3", "Row": "Row-7", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN01064", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-3", "Row": "Row-8", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN02010", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-4", "Row": "Row-1", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN02001", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-4", "Row": "Row-2", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN02002", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-4", "Row": "Row-3", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN02003", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-4", "Row": "Row-4", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN02006", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-4", "Row": "Row-5", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" },
+      { "Roll Number": "2K22LWUN02007", "Room": "LS-03 / Lecture Room / 32", "Column": "Col-4", "Row": "Row-6", "Exam": "INTERNAL EXAM / Mid term examinations MRU", "Subject": "LWH501 - Public International Law and Human Rights", "Date": "2026-09-21", "Time": "09:00 AM to 10:30 AM", "Class": "B.A. (H) LLB Sem 9, BBA (H) LLB Sem 9" }
+    ];
+
+    let seatingData = [...defaultData];
+
+    // ============ DOM elements ============
+    const rollInput = document.getElementById("roll");
+    const searchBtn = document.getElementById("searchBtn");
+    const resultDiv = document.getElementById("result");
+    const notFoundDiv = document.getElementById("notFound");
+    const seatText = document.getElementById("seatText");
+    const roomText = document.getElementById("roomText");
+    const metaText = document.getElementById("metaText");
+    const hintText = document.getElementById("hintText");
+    const statusEl = document.getElementById("status");
+    const fileInput = document.getElementById("fileInput");
+
+    function normalize(str) {
+      return String(str || "").trim().toUpperCase().replace(/\s+/g, "");
+    }
+
+    function findSeat(query) {
+      const q = normalize(query);
+      if (!q) return null;
+
+      // Exact match
+      let match = seatingData.find(r => normalize(r["Roll Number"]) === q);
+      if (match) return match;
+
+      // Partial (contains)
+      match = seatingData.find(r => normalize(r["Roll Number"]).includes(q));
+      return match || null;
+    }
+
+    function showResult(row) {
+      clearError();
+      resultDiv.classList.add("show");
+
+      const col = row["Column"] || row["Col"] || "—";
+      const r = row["Row"] || "—";
+      const room = row["Room"] || "—";
+
+      seatText.textContent = `${col}  •  ${r}`;
+      roomText.textContent = room;
+
+      let meta = "";
+      if (row["Exam"]) meta += `<strong>Exam:</strong> ${row["Exam"]}<br>`;
+      if (row["Subject"]) meta += `<strong>Subject:</strong> ${row["Subject"]}<br>`;
+      if (row["Date"]) meta += `<strong>Date:</strong> ${row["Date"]}`;
+      if (row["Time"]) meta += ` &nbsp;•&nbsp; <strong>Time:</strong> ${row["Time"]}<br>`;
+      if (row["Class"]) meta += `<strong>Class:</strong> ${row["Class"]}`;
+      metaText.innerHTML = meta;
+
+      hintText.textContent = `📍 Go to ${room} → Look for ${col} → Sit in ${r}`;
+    }
+
+    function showNotFound(message) {
+      resultDiv.classList.remove("show");
+      notFoundDiv.classList.add("show");
+      notFoundDiv.innerHTML = message || "❌ <strong>Invalid or incorrect Roll Number</strong><br>No seat found. Please check the number and try again.";
+      rollInput.classList.add("error");
+    }
+
+    function clearError() {
+      notFoundDiv.classList.remove("show");
+      rollInput.classList.remove("error");
+    }
+
+    function doSearch() {
+      const query = rollInput.value.trim();
+      clearError();
+
+      // 1. Empty input
+      if (!query) {
+        showNotFound("❌ <strong>Please enter your Roll Number</strong><br>The box cannot be empty.");
+        alert("❌ Please enter your Roll Number.");
+        rollInput.focus();
+        return;
+      }
+
+      // 2. Very short / clearly invalid format
+      if (query.length < 4) {
+        showNotFound("❌ <strong>Invalid format</strong><br>Please enter a valid Roll Number<br>(e.g. 2K22LWUN01035 or at least 4–5 digits).");
+        alert("❌ Invalid Roll Number format.\n\nPlease enter a valid Roll Number (e.g. 2K22LWUN01035 or at least the last 4–5 digits).");
+        rollInput.focus();
+        return;
+      }
+
+      // 3. Search
+      const found = findSeat(query);
+
+      if (found) {
+        showResult(found);
+      } else {
+        // Show strong visual error + alert
+        showNotFound("❌ <strong>No seat found</strong> for \"" + query + "\"<br>Please check the Roll Number and try again.<br>Contact the exam coordinator if needed.");
+        alert("❌ No seat found for \"" + query + "\".\n\nPlease check the Roll Number and try again.\nIf the problem continues, contact the exam coordinator.");
+      }
+    }
+
+    searchBtn.addEventListener("click", doSearch);
+    rollInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") doSearch();
+    });
+    // Clear error as soon as user starts typing again
+    rollInput.addEventListener("input", () => {
+      clearError();
+    });
+
+    // ============ File Upload ============
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          let data;
+          if (file.name.toLowerCase().endsWith(".csv")) {
+            const text = evt.target.result;
+            const workbook = XLSX.read(text, { type: "string" });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            data = XLSX.utils.sheet_to_json(sheet);
+          } else {
+            const workbook = XLSX.read(evt.target.result, { type: "array" });
+            // Try first sheet, if columns look wrong try with different range
+            let sheet = workbook.Sheets[workbook.SheetNames[0]];
+            data = XLSX.utils.sheet_to_json(sheet);
+            // If no "Roll" column, try skipping title rows
+            if (data.length && !Object.keys(data[0]).some(k => k.toLowerCase().includes("roll"))) {
+              data = XLSX.utils.sheet_to_json(sheet, { range: 2 });
+            }
+          }
+
+          if (!data || data.length === 0) {
+            alert("Could not read any data from the file.");
+            return;
+          }
+
+          // Normalize column names a bit
+          seatingData = data.map(row => {
+            const newRow = {};
+            for (const [k, v] of Object.entries(row)) {
+              const key = k.trim();
+              if (/roll/i.test(key)) newRow["Roll Number"] = v;
+              else if (/room/i.test(key)) newRow["Room"] = v;
+              else if (/col/i.test(key)) newRow["Column"] = v;
+              else if (/row/i.test(key)) newRow["Row"] = v;
+              else newRow[key] = v;
+            }
+            return newRow;
+          });
+
+          statusEl.textContent = `${seatingData.length} seats loaded from ${file.name}`;
+          resultDiv.classList.remove("show");
+          notFoundDiv.classList.remove("show");
+          rollInput.value = "";
+          alert(`Successfully loaded ${seatingData.length} seats!`);
+        } catch (err) {
+          console.error(err);
+          alert("Error reading file. Make sure it has columns like Roll Number, Room, Column, Row.");
+        }
+      };
+
+      if (file.name.toLowerCase().endsWith(".csv")) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    });
+
+    // Focus the input on load
+    rollInput.focus();
+  </script>
+</body>
+</html>
